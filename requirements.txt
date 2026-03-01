@@ -1,0 +1,11 @@
+# Core numerical computing
+numpy>=1.24
+
+# Plotting
+matplotlib>=3.7
+
+# Optional (nếu sau này dùng data handling)
+pandas>=2.0
+
+# Optional (nâng cấp thống kê / distribution sau này)
+scipy>=1.10
