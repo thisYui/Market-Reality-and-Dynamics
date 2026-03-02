@@ -57,6 +57,9 @@ class LiquidityModel:
         """
         Spread tăng khi depth giảm.
         """
+        if self.current_depth <= 0:
+            return self.base_spread * 100  # crisis spread blowout
+
         liquidity_ratio = self.current_depth / self.base_depth
         return self.base_spread / liquidity_ratio
 
@@ -87,12 +90,13 @@ class LiquidityModel:
         Thực thi order và cập nhật depth.
         """
 
-        impact = self.price_impact(order_size)
+        available = self.current_depth
 
-        # Order tiêu hao liquidity
-        self.current_depth -= abs(order_size)
+        executed = min(abs(order_size), available)
 
-        self.current_depth = max(self.current_depth, 0)
+        impact = self.price_impact(executed)
+
+        self.current_depth -= executed
 
         return {
             "impact": impact,
