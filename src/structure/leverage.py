@@ -93,10 +93,13 @@ class LeveragedPosition:
 
 class LiquidationEngine:
     """
-    Mô phỏng hệ thống nhiều vị thế leverage.
+    State-Dependent Liquidation Engine
 
-    Khi nhiều vị thế bị liquidate,
-    tạo additional price impact.
+    Features:
+    - Price level evolution
+    - Liquidity-dependent impact
+    - Multi-round cascade
+    - Endogenous feedback loop
     """
 
     def __init__(
@@ -105,10 +108,10 @@ class LiquidationEngine:
         initial_capital: float = 100,
         leverage: float = 5.0,
         maintenance_margin: float = 0.25,
-        impact_coefficient: float = 0.02,
+        liquidation_size: float = 10.0,
+        liquidity_model=None,
+        initial_price: float = 100.0,
     ):
-        self.impact_coefficient = impact_coefficient
-
         self.positions = [
             LeveragedPosition(
                 initial_capital,
@@ -118,36 +121,120 @@ class LiquidationEngine:
             for _ in range(n_agents)
         ]
 
-    def step(self, market_return: float) -> Dict:
+        self.liquidation_size = liquidation_size
+        self.liquidity_model = liquidity_model
+        self.price = initial_price
+
+    # ============================================================
+    # Single Step
+    # ============================================================
+
+    def step(self) -> dict:
         """
-        Một bước thị trường:
-        - Cập nhật vị thế
-        - Đếm liquidation
-        - Tính additional price impact
+        Một vòng cascade:
+        - Check liquidation
+        - Tạo sell pressure
+        - Impact qua liquidity model
+        - Update price
         """
 
         liquidations = 0
 
+        # 1. Check margin calls
         for position in self.positions:
-            result = position.mark_to_market(market_return)
+            result = position.mark_to_market(
+                return_t=0  # mark-to-market dùng price change riêng
+            )
 
             if result["status"] == "margin_call":
                 liquidations += 1
 
-        liquidation_ratio = liquidations / len(self.positions)
+        # 2. Compute total forced selling volume
+        total_sell_volume = liquidations * self.liquidation_size
 
-        # Liquidation tạo áp lực bán
-        additional_return = -self.impact_coefficient * liquidation_ratio
+        if total_sell_volume == 0:
+            return {
+                "liquidations": 0,
+                "price": self.price,
+                "regime": None,
+            }
+
+        # 3. Pass through liquidity model
+        if self.liquidity_model is not None:
+            liquidity_result = self.liquidity_model.execute_trade(
+                order_size=total_sell_volume
+            )
+
+            impact = liquidity_result["impact"]
+            regime = liquidity_result["regime"]
+
+        else:
+            # fallback linear impact
+            impact = -0.001 * total_sell_volume
+            regime = None
+
+        # 4. Update price
+        self.price *= (1 + impact)
+
+        # 5. Update positions with realized return
+        realized_return = impact
+
+        for position in self.positions:
+            if position.alive:
+                position.mark_to_market(realized_return)
 
         return {
             "liquidations": liquidations,
-            "liquidation_ratio": liquidation_ratio,
-            "additional_return": additional_return,
+            "price": self.price,
+            "impact": impact,
+            "regime": regime,
         }
 
+    # ============================================================
+    # Multi-Round Simulation
+    # ============================================================
+
+    def simulate(
+        self,
+        max_rounds: int = 50,
+        initial_shock: float = -0.02,
+    ) -> dict:
+        """
+        Simulate cascade starting with initial shock.
+        """
+
+        # Apply initial shock
+        self.price *= (1 + initial_shock)
+
+        for position in self.positions:
+            if position.alive:
+                position.mark_to_market(initial_shock)
+
+        prices = [self.price]
+        liquidation_counts = []
+        regimes = []
+
+        for _ in range(max_rounds):
+
+            result = self.step()
+
+            liquidation_counts.append(result["liquidations"])
+            prices.append(result["price"])
+            regimes.append(result["regime"])
+
+            if result["liquidations"] == 0:
+                break
+
+        return {
+            "prices": prices,
+            "liquidations": liquidation_counts,
+            "regimes": regimes,
+        }
+
+    # ============================================================
+    # System Health
+    # ============================================================
+
     def alive_ratio(self) -> float:
-        """
-        Tỷ lệ vị thế còn sống.
-        """
         alive = sum(p.alive for p in self.positions)
         return alive / len(self.positions)
