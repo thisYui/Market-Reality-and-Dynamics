@@ -41,6 +41,7 @@ from .systemic_risk import (
 from .stylized_facts import (
     kurtosis,
     volatility_clustering,
+    tail_ratio,
     return_autocorrelation,
     order_flow_autocorrelation,
 )
@@ -84,6 +85,7 @@ __all__ = [
     # stylized facts
     "kurtosis",
     "volatility_clustering",
+    "tail_ratio",
     "return_autocorrelation",
     "order_flow_autocorrelation",
 ]
