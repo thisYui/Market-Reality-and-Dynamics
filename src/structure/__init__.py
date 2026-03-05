@@ -1,81 +1,28 @@
-"""
-Structure Package
------------------
+from .state.orderbook import OrderBook
 
-Microstructure & structural components of the market system.
-
-Includes:
-
-- Order Book
-- Market Maker
-- Liquidity Model
-- Leverage & Margin
-- Liquidation Cascade
-
-Designed for:
-Project 1 — Market Reality & Dynamics
-"""
-
-# ============================================================
-# Order Book
-# ============================================================
-
-from .orderbook import OrderBook
-
-# ============================================================
-# Market Maker
-# ============================================================
-
-from .market_maker import MarketMaker
-
-# ============================================================
-# Liquidity
-# ============================================================
-
-from .liquidity import (
-    LiquidityModel,
-    LiquidityShockModel,
+from .mechanism.liquidity import LiquidityModel
+from .mechanism.leverage import LeverageAccount
+from .mechanism.liquidation import LiquidationEngine
+from .mechanism.order_flow import (
+    RandomOrderFlow,
+    PersistentOrderFlow,
+    MetaOrderFlow,
 )
 
-# ============================================================
-# Leverage
-# ============================================================
 
-from .leverage import (
-    LeveragedPosition,
-    LiquidationEngine,
-)
+from .agents.market_maker import MarketMaker
 
-# ============================================================
-# Liquidation Cascade
-# ============================================================
+from .simulation.market_simulation import MarketSimulation
 
-from .liquidation import (
-    LeveragedAgent,
-    LiquidationCascade,
-)
-
-# ============================================================
-# Public API
-# ============================================================
 
 __all__ = [
-
-    # Order book
     "OrderBook",
-
-    # Market maker
-    "MarketMaker",
-
-    # Liquidity
     "LiquidityModel",
-    "LiquidityShockModel",
-
-    # Leverage
-    "LeveragedPosition",
+    "LeverageAccount",
     "LiquidationEngine",
-
-    # Liquidation cascade
-    "LeveragedAgent",
-    "LiquidationCascade",
+    "RandomOrderFlow",
+    "PersistentOrderFlow",
+    "MetaOrderFlow",
+    "MarketMaker",
+    "MarketSimulation",
 ]
