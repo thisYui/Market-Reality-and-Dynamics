@@ -6,10 +6,10 @@ class MarketSimulation:
     """
     Main market simulation engine.
 
-    Orchestrates:
-    - order flow
-    - market maker
-    - liquidity model
+    Coordinates:
+    - order flow generation
+    - market maker liquidity provision
+    - order book execution
     - leverage accounts
     - liquidation cascades
     """
@@ -38,11 +38,12 @@ class MarketSimulation:
         self.accounts = accounts if accounts else []
         self.liquidation_engine = liquidation_engine
 
-        self.price = initial_price
         self.time = 0
+        self.price = initial_price
 
+        # histories
         self.price_history = [initial_price]
-        self.mid_history = []
+        self.mid_history = [initial_price]
         self.trade_history = []
         self.events = []
 
@@ -52,45 +53,45 @@ class MarketSimulation:
     # initial liquidity
     # -------------------------------------------------
 
-    def seed_orderbook(self, mid_price, levels=5, size=100):
+    def seed_orderbook(self, mid_price, levels=5, size=20, tick=0.5):
         """
-        Seed initial book liquidity.
+        Initialize liquidity around mid price.
         """
 
         for i in range(1, levels + 1):
 
-            bid = mid_price - i
-            ask = mid_price + i
+            bid = mid_price - i * tick
+            ask = mid_price + i * tick
 
-            self.orderbook.add_bid(bid, size)
-            self.orderbook.add_ask(ask, size)
+            self.orderbook.add_bid(bid, size * i)
+            self.orderbook.add_ask(ask, size * i)
 
     # -------------------------------------------------
-    # market step
+    # single market step
     # -------------------------------------------------
 
     def step(self):
 
         step_events = []
 
-        # -------------------------------------------------
+        # -----------------------------------------
         # 1. market maker quotes
-        # -------------------------------------------------
+        # -----------------------------------------
 
         self.market_maker.place_quotes(self.orderbook)
 
-        # -------------------------------------------------
+        # -----------------------------------------
         # 2. generate order flow
-        # -------------------------------------------------
+        # -----------------------------------------
 
         event = self.order_flow.generate()
 
         side = event["side"]
         size = event["size"]
 
-        # -------------------------------------------------
+        # -----------------------------------------
         # 3. execute trade
-        # -------------------------------------------------
+        # -----------------------------------------
 
         if side == "buy":
 
@@ -110,37 +111,39 @@ class MarketSimulation:
             "size": size,
             "price": result["avg_price"],
             "signed_size": event["signed_size"],
+            "time": self.time
         }
 
         self.trade_history.append(trade)
         step_events.append(trade)
 
-        # -------------------------------------------------
-        # 4. update market maker
-        # -------------------------------------------------
+        # -----------------------------------------
+        # 4. update market maker inventory
+        # -----------------------------------------
 
         self.market_maker.process_trade(trade)
 
-        # -------------------------------------------------
-        # 5. update price
-        # -------------------------------------------------
+        # -----------------------------------------
+        # 5. update mid price
+        # -----------------------------------------
 
-        new_price = self.orderbook.mid_price()
+        mid = self.orderbook.mid_price()
 
-        if new_price is not None:
-            self.price = new_price
-            self.mid_history.append(new_price)
+        if mid is not None:
+            self.price = mid
 
-        # -------------------------------------------------
+        self.mid_history.append(self.price)
+
+        # -----------------------------------------
         # 6. mark-to-market accounts
-        # -------------------------------------------------
+        # -----------------------------------------
 
         for acc in self.accounts:
             acc.mark_to_market(self.price)
 
-        # -------------------------------------------------
+        # -----------------------------------------
         # 7. liquidation cascade
-        # -------------------------------------------------
+        # -----------------------------------------
 
         if self.liquidation_engine:
 
@@ -151,12 +154,15 @@ class MarketSimulation:
 
             if liquidation_events:
 
+                for e in liquidation_events:
+                    e["time"] = self.time
+
                 self.trade_history.extend(liquidation_events)
                 step_events.extend(liquidation_events)
 
-        # -------------------------------------------------
+        # -----------------------------------------
         # 8. inventory risk control
-        # -------------------------------------------------
+        # -----------------------------------------
 
         inv_trade = self.market_maker.reduce_inventory(
             self.orderbook
@@ -164,12 +170,14 @@ class MarketSimulation:
 
         if inv_trade:
 
+            inv_trade["time"] = self.time
+
             self.trade_history.append(inv_trade)
             step_events.append(inv_trade)
 
-        # -------------------------------------------------
+        # -----------------------------------------
         # 9. record price
-        # -------------------------------------------------
+        # -----------------------------------------
 
         self.price_history.append(self.price)
 
@@ -199,11 +207,12 @@ class MarketSimulation:
 
     def price_shock(self, magnitude):
         """
-        Inject exogenous price shock.
+        Inject external price shock.
         """
 
         self.price += magnitude
         self.price_history.append(self.price)
+        self.mid_history.append(self.price)
 
     # -------------------------------------------------
     # state snapshot
@@ -211,11 +220,13 @@ class MarketSimulation:
 
     def snapshot(self):
 
+        spread = None
+        if hasattr(self.orderbook, "spread"):
+            spread = self.orderbook.spread()
+
         return {
             "time": self.time,
             "price": self.price,
-            "spread": self.orderbook.spread()
-            if hasattr(self.orderbook, "spread")
-            else None,
+            "spread": spread,
             "inventory": self.market_maker.inventory,
         }
