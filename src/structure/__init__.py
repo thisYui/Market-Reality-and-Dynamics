@@ -24,10 +24,10 @@ state → mechanism → agents → simulation
 """
 
 # ---- state ------------------------------------------------------------------
-from state.orderbook import OrderBook
+from .state.orderbook import OrderBook
 
 # ---- mechanism --------------------------------------------------------------
-from mechanism.order_flow import (
+from .mechanism.order_flow import (
     OrderEvent,
     FlowSnapshot,
     PoissonArrivalProcess,
@@ -43,7 +43,7 @@ from mechanism.order_flow import (
     TraderType,
 )
 
-from mechanism.liquidity import (
+from .mechanism.liquidity import (
     Quote,
     DepthSnapshot,
     SpreadDecomposition,
@@ -54,7 +54,7 @@ from mechanism.liquidity import (
     LiquidityTracker,
 )
 
-from mechanism.leverage import (
+from .mechanism.leverage import (
     Position,
     PositionBook,
     BalanceSheet,
@@ -64,7 +64,7 @@ from mechanism.leverage import (
     LeverageCycleTracker,
 )
 
-from mechanism.liquidation import (
+from .mechanism.liquidation import (
     LiquidationOrder,
     LiquidationReason,
     LiquidationStatus,
@@ -78,7 +78,7 @@ from mechanism.liquidation import (
 )
 
 # ---- agents -----------------------------------------------------------------
-from agents.market_maker import (
+from .agents.market_maker import (
     MarketMaker,
     MarketState,
     QuoteDecision,
@@ -98,7 +98,7 @@ from agents.market_maker import (
     MultiLevelStrategy,
 )
 
-from agents.traders import (
+from .agents.traders import (
     BaseTrader,
     NoiseTrader,
     InformedTrader,
@@ -113,7 +113,7 @@ from agents.traders import (
 )
 
 # ---- simulation -------------------------------------------------------------
-from simulation.market_simulation import (
+from .simulation.market_simulation import (
     FundamentalProcess,
     SimulationClock,
     MarketSimulation,

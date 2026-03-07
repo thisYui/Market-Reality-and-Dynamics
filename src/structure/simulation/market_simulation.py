@@ -32,8 +32,7 @@ Design
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -824,7 +823,7 @@ class MarketSimulation:
         for trader in self.traders:
             if trader.agent_id == intent.agent_id:
                 try:
-                    from traders import FillNotice, OrderSide
+                    from src.structure import FillNotice, OrderSide
                     fill = FillNotice(
                         agent_id=intent.agent_id,
                         side=intent.side,
@@ -843,8 +842,8 @@ class MarketSimulation:
         if self.market_maker is None:
             return
         try:
-            from market_maker import Fill
-            from traders import OrderSide
+            from src.structure import Fill
+            from src.structure import OrderSide
             side_str = trade.get("side", "bid")
             fill = Fill(
                 timestamp=trade.get("t", 0.0),
@@ -934,8 +933,8 @@ class ScenarioBuilder:
         seed:         int   = 42,
     ) -> MarketSimulation:
         """Low-volatility baseline with market maker providing liquidity."""
-        from traders import build_trader_population
-        from market_maker import MarketMaker, AvellanedaStoikovStrategy
+        from src.structure import build_trader_population
+        from src.structure import MarketMaker, AvellanedaStoikovStrategy
 
         rng = np.random.default_rng(seed)
 
@@ -971,8 +970,8 @@ class ScenarioBuilder:
         seed:       int   = 7,
     ) -> MarketSimulation:
         """High informed trader fraction – tests adverse selection and price discovery."""
-        from traders import build_trader_population, InformedTrader
-        from market_maker import MarketMaker, InventorySkewStrategy
+        from src.structure import build_trader_population, InformedTrader
+        from src.structure import MarketMaker, InventorySkewStrategy
 
         rng = np.random.default_rng(seed)
 
@@ -1109,8 +1108,8 @@ class ScenarioBuilder:
         Population of leveraged momentum traders.
         Demonstrates procyclical leverage and potential cascade.
         """
-        from traders import build_trader_population, MomentumTrader
-        from market_maker import MarketMaker, InventorySkewStrategy
+        from src.structure import build_trader_population, MomentumTrader
+        from src.structure import MarketMaker, InventorySkewStrategy
 
         rng = np.random.default_rng(seed)
 
