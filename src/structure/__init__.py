@@ -24,7 +24,7 @@ state → mechanism → agents → simulation
 """
 
 # ---- state ------------------------------------------------------------------
-from .state.orderbook import OrderBook
+from .state.orderbook import OrderBook, Order, Side, OrderType
 
 # ---- mechanism --------------------------------------------------------------
 from .mechanism.order_flow import (
@@ -128,7 +128,7 @@ __author__  = "Market Microstructure Research"
 
 __all__ = [
     # state
-    "OrderBook",
+    "OrderBook", "Order", "Side", "OrderType",
 
     # order flow
     "OrderEvent", "FlowSnapshot",

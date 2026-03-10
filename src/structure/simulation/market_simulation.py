@@ -249,11 +249,14 @@ class OrderBookAdapter:
                 return (bb + ba) / 2 if bb and ba else None
 
             def execute_market_buy(self, size):
-                remaining, cost = size, 0.0
+                if not self.asks:
+                    return 0.0
+                remaining, cost, filled = size, 0.0, 0.0
                 for price in sorted(self.asks):
                     avail  = self.asks[price]
                     traded = min(remaining, avail)
                     cost  += traded * price
+                    filled += traded
                     remaining -= traded
                     self.asks[price] -= traded
                     if self.asks[price] <= 0:
@@ -261,14 +264,17 @@ class OrderBookAdapter:
                     self.trades.append({"side": "buy", "price": price, "size": traded})
                     if remaining <= 0:
                         break
-                return cost / size if size > 0 else 0.0
+                return cost / filled if filled > 0 else 0.0
 
             def execute_market_sell(self, size):
-                remaining, revenue = size, 0.0
+                if not self.bids:
+                    return 0.0
+                remaining, revenue, filled = size, 0.0, 0.0
                 for price in sorted(self.bids, reverse=True):
                     avail  = self.bids[price]
                     traded = min(remaining, avail)
                     revenue += traded * price
+                    filled  += traded
                     remaining -= traded
                     self.bids[price] -= traded
                     if self.bids[price] <= 0:
@@ -276,7 +282,7 @@ class OrderBookAdapter:
                     self.trades.append({"side": "sell", "price": price, "size": traded})
                     if remaining <= 0:
                         break
-                return revenue / size if size > 0 else 0.0
+                return revenue / filled if filled > 0 else 0.0
 
             def snapshot(self):
                 bb, ba = self.best_bid(), self.best_ask()
@@ -336,6 +342,9 @@ class OrderBookAdapter:
                 else:
                     avg_price = self.book.execute_market_sell(intent.quantity)
                     sign = -1
+
+                if avg_price <= 0:
+                    return None   # empty book – drop trade silently
 
                 self._last_trade_price = avg_price
                 self._last_trade_sign  = sign
@@ -735,7 +744,13 @@ class MarketSimulation:
                 continue
             trade = self.adapter.process_intent(intent)
             if trade is not None:
-                self._trades.append({**trade, "t": t})
+                snap = self.adapter.book.snapshot()
+                self._trades.append({
+                    **trade,
+                    "t":        t,
+                    "best_bid": snap.get("best_bid") or 0.0,
+                    "best_ask": snap.get("best_ask") or 0.0,
+                })
                 if trade["sign"] > 0:
                     tick_buy_vol  += trade["quantity"]
                 else:
@@ -1012,9 +1027,8 @@ class ScenarioBuilder:
         Large institutional sell order hits illiquid book mid-simulation,
         triggering stop-losses and potential cascade.
         """
-        from traders import (build_trader_population, LiquiditySeeker,
-                             StopLossTrader)
-        from market_maker import MarketMaker, VolatilityAdaptiveStrategy
+        from src.structure import (build_trader_population, LiquiditySeeker,
+                             StopLossTrader, MarketMaker, VolatilityAdaptiveStrategy)
 
         rng = np.random.default_rng(seed)
 
